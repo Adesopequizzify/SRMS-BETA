@@ -7,7 +7,7 @@ if (!isset($_SESSION['admin_id'])) {
     exit();
 }
 
-// Fetch all departments for the filter
+// Fetch all departments for the filter and form
 $departments = fetchAll("SELECT * FROM Departments ORDER BY department_name");
 
 // Initialize filter variables
@@ -24,7 +24,7 @@ $offset = ($page - 1) * $limit;
 
 // Build the query
 $query = "SELECT s.student_id, s.matriculation_number, s.first_name, s.last_name, 
-                 s.gender, s.class, d.department_name
+                 s.gender, s.class, d.department_name, d.department_id
           FROM Students s
           JOIN Departments d ON s.department_id = d.department_id
           WHERE 1=1";
@@ -158,16 +158,23 @@ $totalPages = ceil($totalStudents / $limit);
                                 </thead>
                                 <tbody>
                                     <?php foreach ($students as $student): ?>
-                                        <tr>
+                                        <tr data-student-id="<?php echo $student['student_id']; ?>"
+                                            data-matric-number="<?php echo htmlspecialchars($student['matriculation_number']); ?>"
+                                            data-first-name="<?php echo htmlspecialchars($student['first_name']); ?>"
+                                            data-last-name="<?php echo htmlspecialchars($student['last_name']); ?>"
+                                            data-department-id="<?php echo $student['department_id']; ?>"
+                                            data-department-name="<?php echo htmlspecialchars($student['department_name']); ?>"
+                                            data-class="<?php echo htmlspecialchars($student['class']); ?>"
+                                            data-gender="<?php echo htmlspecialchars($student['gender']); ?>">
                                             <td><?php echo htmlspecialchars($student['matriculation_number']); ?></td>
                                             <td><?php echo htmlspecialchars($student['last_name'] . ', ' . $student['first_name']); ?></td>
                                             <td><?php echo htmlspecialchars($student['department_name']); ?></td>
                                             <td><?php echo htmlspecialchars($student['class']); ?></td>
                                             <td><?php echo htmlspecialchars($student['gender']); ?></td>
                                             <td class="action-buttons">
-                                                <button class="btn btn-sm btn-primary view-student" data-student-id="<?php echo $student['student_id']; ?>">View</button>
-                                                <button class="btn btn-sm btn-secondary edit-student" data-student-id="<?php echo $student['student_id']; ?>">Edit</button>
-                                                <button class="btn btn-sm btn-danger delete-student" data-student-id="<?php echo $student['student_id']; ?>">Delete</button>
+                                                <button class="btn btn-sm btn-primary view-student" data-bs-toggle="modal" data-bs-target="#studentModal">View</button>
+                                                <button class="btn btn-sm btn-secondary edit-student" data-bs-toggle="modal" data-bs-target="#studentModal">Edit</button>
+                                                <button class="btn btn-sm btn-danger delete-student" data-bs-toggle="modal" data-bs-target="#deleteConfirmModal">Delete</button>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -202,8 +209,57 @@ $totalPages = ceil($totalStudents / $limit);
                     <h5 class="modal-title" id="studentModalTitle">Student Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body" id="studentModalContent">
-                    <!-- Student details will be loaded here -->
+                <div class="modal-body">
+                    <form id="studentForm">
+                        <input type="hidden" id="studentId" name="student_id">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="firstName" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="firstName" name="first_name" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="lastName" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="lastName" name="last_name" readonly>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="gender" class="form-label">Gender</label>
+                                <select class="form-select" id="gender" name="gender" required>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="matricNumber" class="form-label">Matriculation Number</label>
+                                <input type="text" class="form-control" id="matricNumber" name="matriculation_number" readonly>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="department" class="form-label">Department</label>
+                                <select class="form-select" id="department" name="department_id" required>
+                                    <?php foreach ($departments as $dept): ?>
+                                        <option value="<?php echo $dept['department_id']; ?>"><?php echo htmlspecialchars($dept['department_name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="class" class="form-label">Class</label>
+                                <select class="form-select" id="class" name="class" required>
+                                    <option value="ND1">ND1</option>
+                                    <option value="ND2">ND2</option>
+                                    <option value="HND1">HND1</option>
+                                    <option value="HND2">HND2</option>
+                                </select>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveChanges">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -228,8 +284,8 @@ $totalPages = ceil($totalStudents / $limit);
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="../js/dashboard.js"></script>
     <script src="../js/student-list.js"></script>
 </body>
