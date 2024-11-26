@@ -58,7 +58,7 @@ if (!isset($_SESSION['admin_id'])) {
                     </a>
                 </li>
                 <li>
-                    <a href="view_results.php">
+                    <a href="view_result.php">
                         <i class="bi bi-table"></i> View Results
                     </a>
                 </li>

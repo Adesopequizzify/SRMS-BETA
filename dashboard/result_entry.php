@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             </div>
-            <button id="calculateOverallResults" class="btn btn-secondary">Calculate Overall Results</button>
+            <button id="calculateOverallResults" class="btn btn-secondary">Update All Results</button>
 
             <!-- Preview Modal -->
             <div class="modal fade" id="previewModal" tabindex="-1">
