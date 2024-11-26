@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['student_id'] = $student['student_id'];
             $_SESSION['student_name'] = $student['first_name'] . ' ' . $student['last_name'];
             $_SESSION['matriculation_number'] = $student['matriculation_number'];
-            echo json_encode(['success' => true, 'redirect' => 'dashboard/student_dashboard.php']);
+            echo json_encode(['success' => true, 'redirect' => 'dashboard/student/student_dashboard.php']);
         } else {
             echo json_encode(['success' => false, 'message' => 'Invalid matric number or password.']);
         }
