@@ -22,6 +22,15 @@ $(document).ready(function() {
         { min: 0.00, max: 1.99, remark: 'Fail' }
     ];
 
+    // Prevent form submission on Enter key for matriculation number input
+    $('#matricNumber').on('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            $(this).blur(); // Trigger the blur event
+            return false;
+        }
+    });
+
     $('#matricNumber').on('blur', function() {
         let matricNumber = $(this).val();
         if (matricNumber) {
@@ -129,8 +138,7 @@ $(document).ready(function() {
             }
         } else {
             gradeDisplay.html('');
-            remarkBadge.removeClass().addClass('badge
-bg-secondary').text('');
+            remarkBadge.removeClass().addClass('badge bg-secondary').text('');
         }
     });
 
@@ -259,51 +267,6 @@ bg-secondary').text('');
         if (studentId) {
             loadStudentCourses();
         }
-    });
-
-    // Add this new function to calculate overall results
-    function calculateOverallResults() {
-        $.ajax({
-            url: 'ajax/calculate_overall_results.php',
-            type: 'POST',
-            data: {
-                student_id: $('#studentId').val(),
-                academic_year_id: $('#academicYear').val()
-            },
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    showAlert(response.message, 'success');
-                } else {
-                    showAlert('Failed to calculate overall results: ' + response.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                showAlert('An error occurred while calculating overall results: ' + error);
-            }
-        });
-    }
-
-    // Modify the form submission handler to call calculateOverallResults after successful submission
-    $('#resultEntryForm').on('submit', function(e) {
-        e.preventDefault();
-        $.ajax({
-            url: $(this).attr('action'),
-            type: 'POST',
-            data: $(this).serialize(),
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    showAlert(response.message, 'success');
-                    calculateOverallResults(); // Call the new function here
-                } else {
-                    showAlert('Failed to submit results: ' + response.message);
-                }
-            },
-            error: function(xhr, status, error) {
-                showAlert('An error occurred while submitting results: ' + error);
-            }
-        });
     });
 });
 
