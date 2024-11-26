@@ -1,83 +1,90 @@
 $(document).ready(function() {
-  let table = $('#studentsTable').DataTable({
-    pageLength: 10,
-    lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "All"]],
-    dom: '<"row"<"col-md-6"l><"col-md-6"f>>rtip',
-    language: {
-      search: "_INPUT_",
-      searchPlaceholder: "Search..."
-    }
+  // View Student
+  $('.view-student').on('click', function() {
+    var studentId = $(this).data('student-id');
+    loadStudentDetails(studentId, false);
   });
 
-  // Edit student
-  $('#studentsTable').on('click', '.edit-student', function() {
-    let studentId = $(this).data('id');
-    let row = $(this).closest('tr');
-    let student = {
-      student_id: studentId,
-      first_name: row.find('td:eq(1)').text(),
-      last_name: row.find('td:eq(2)').text(),
-      matriculation_number: row.find('td:eq(0)').text(),
-      department_name: row.find('td:eq(3)').text(),
-      class: row.find('td:eq(4)').text(),
-      academic_year: row.find('td:eq(5)').text()
-    };
-
-    $('#editStudentId').val(student.student_id);
-    $('#editFirstName').val(student.first_name);
-    $('#editLastName').val(student.last_name);
-    $('#editMatricNumber').val(student.matriculation_number);
-    $('#editDepartment').val($('#editDepartment option').filter(function() {
-      return $(this).text() === student.department_name;
-    }).val());
-    $('#editClass').val(student.class);
-    $('#editAcademicYear').val($('#editAcademicYear option').filter(function() {
-      return $(this).text() === student.academic_year;
-    }).val());
-
-    $('#editStudentModal').modal('show');
+  // Edit Student
+  $('.edit-student').on('click', function() {
+    var studentId = $(this).data('student-id');
+    loadStudentDetails(studentId, true);
   });
 
-  // Save student changes
-  $('#saveStudentChanges').click(function() {
-    let formData = $('#editStudentForm').serialize();
+  // Delete Student
+  $('.delete-student').on('click', function() {
+    var studentId = $(this).data('student-id');
+    $('#deleteConfirmModal').modal('show');
+    $('#confirmDelete').data('student-id', studentId);
+  });
+
+  // Confirm Delete
+  $('#confirmDelete').on('click', function() {
+    var studentId = $(this).data('student-id');
     $.ajax({
-      url: 'ajax/update_student.php',
+      url: 'ajax/delete_student.php',
       type: 'POST',
-      data: formData,
-      dataType: 'json',
+      data: { student_id: studentId },
       success: function(response) {
-        if (response.success) {
-          $('#editStudentModal').modal('hide');
-          showAlert('Student information updated successfully', 'success');
-          // Reload the page to reflect changes
-          setTimeout(function() {
-            location.reload();
-          }, 1500);
+        var result = JSON.parse(response);
+        if (result.success) {
+          alert('Student deleted successfully.');
+          location.reload();
         } else {
-          showAlert('Failed to update student information: ' + response.message);
+          alert('Error: ' + result.message);
         }
       },
       error: function() {
-        showAlert('An error occurred while updating student information');
+        alert('Error deleting student.');
+      }
+    });
+    $('#deleteConfirmModal').modal('hide');
+  });
+
+  // Load Student Details
+  function loadStudentDetails(studentId, editable) {
+    $.ajax({
+      url: 'ajax/get_student_details.php',
+      type: 'GET',
+      data: { student_id: studentId, editable: editable },
+      success: function(response) {
+        $('#studentModalContent').html(response);
+        $('#studentModalTitle').text(editable ? 'Edit Student' : 'Student Details');
+        $('#studentModal').modal('show');
+      },
+      error: function() {
+        alert('Error fetching student details.');
+      }
+    });
+  }
+
+  // Submit Edit Student Form
+  $(document).on('submit', '#editStudentForm', function(e) {
+    e.preventDefault();
+    $.ajax({
+      url: 'ajax/update_student.php',
+      type: 'POST',
+      data: $(this).serialize(),
+      success: function(response) {
+        var result = JSON.parse(response);
+        if (result.success) {
+          alert('Student information updated successfully.');
+          $('#studentModal').modal('hide');
+          location.reload();
+        } else {
+          alert('Error: ' + result.message);
+        }
+      },
+      error: function() {
+        alert('Error updating student information.');
       }
     });
   });
 
-  // Apply filters
+  // Filter form submission
   $('#filterForm').on('submit', function(e) {
     e.preventDefault();
-    let url = window.location.pathname + '?' + $(this).serialize();
-    window.location.href = url;
+    var formData = $(this).serialize();
+    window.location.href = 'student_list.php?' + formData;
   });
-
-  function showAlert(message, type = 'danger') {
-    const alertHtml = `
-            <div class="alert alert-${type} alert-dismissible fade show" role="alert">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `;
-    $('#alertPlaceholder').html(alertHtml);
-  }
 });
