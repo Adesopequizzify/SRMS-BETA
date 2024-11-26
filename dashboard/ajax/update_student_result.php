@@ -2,44 +2,37 @@
 session_start();
 require_once '../../db.php';
 
-header('Content-Type: application/json');
-
-if (!isset($_SESSION['admin_id']) || !isset($_POST['student_id']) || !isset($_POST['scores'])) {
-    echo json_encode(['success' => false, 'message' => 'Unauthorized access or missing data']);
-    exit;
+if (!isset($_SESSION['admin_id']) || !isset($_POST['student_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized access or missing student ID.']);
+    exit();
 }
 
 $student_id = $_POST['student_id'];
 $scores = $_POST['scores'];
+$grades = $_POST['grades'];
+
+$conn->begin_transaction();
 
 try {
-    $conn->begin_transaction();
-
     foreach ($scores as $result_id => $score) {
-        $score = floatval($score);
-        
-        // Get grade based on score
-        $grade_query = "SELECT grade_id FROM Grades 
-                        WHERE ? BETWEEN min_percentage AND max_percentage";
-        $grade_result = fetchOne($grade_query, [$score]);
-        
-        if (!$grade_result) {
-            throw new Exception("Invalid score for result ID: $result_id");
-        }
-
-        $grade_id = $grade_result['grade_id'];
-
-        // Update result
-        $update_query = "UPDATE Results 
-                         SET score = ?, grade_id = ?
-                         WHERE result_id = ? AND student_id = ?";
-        executeQuery($update_query, [$score, $grade_id, $result_id, $student_id]);
+        $grade_id = $grades[$result_id];
+        $updateQuery = "UPDATE Results SET score = ?, grade_id = ? WHERE result_id = ? AND student_id = ?";
+        $stmt = $conn->prepare($updateQuery);
+        $stmt->bind_param("diii", $score, $grade_id, $result_id, $student_id);
+        $stmt->execute();
     }
 
-    $conn->commit();
-    echo json_encode(['success' => true, 'message' => 'Results updated successfully']);
+    // Recalculate overall results
+    require_once 'calculate_overall_results.php';
+    $recalculationResult = calculateAndUpdateOverallResults();
+
+    if ($recalculationResult['success']) {
+        $conn->commit();
+        echo json_encode(['success' => true, 'message' => 'Results updated successfully.']);
+    } else {
+        throw new Exception($recalculationResult['message']);
+    }
 } catch (Exception $e) {
     $conn->rollback();
-    echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+    echo json_encode(['success' => false, 'message' => 'Error updating results: ' . $e->getMessage()]);
 }
-

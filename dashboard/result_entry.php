@@ -184,6 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
             </div>
+            <button id="calculateOverallResults" class="btn btn-secondary">Calculate Overall Results</button>
 
             <!-- Preview Modal -->
             <div class="modal fade" id="previewModal" tabindex="-1">
@@ -212,6 +213,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="../js/dashboard.js"></script>
     <script src="../js/result-entry.js"></script>
+
+<script>
+$(document).ready(function() {
+    $('#calculateOverallResults').on('click', function() {
+        $.ajax({
+            url: 'calculate_overall_results.php',
+            type: 'POST',
+            dataType: 'json',
+            success: function(response) {
+                if (response.success) {
+                    alert(response.message);
+                } else {
+                    alert('Error: ' + response.message);
+                }
+            },
+            error: function() {
+                alert('An error occurred while calculating overall results.');
+            }
+        });
+    });
+});
+</script>
 </body>
 </html>
-

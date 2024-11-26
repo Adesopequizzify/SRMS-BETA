@@ -27,16 +27,14 @@ $offset = ($page - 1) * $limit;
 
 // Build the query
 $query = "SELECT s.student_id, s.first_name, s.last_name, s.matriculation_number, 
-                 d.department_name, ay.academic_year, sess.session_name,
-                 AVG(r.score) as average_score, 
-                 g.grade_letter as grade
-          FROM Students s
-          JOIN Departments d ON s.department_id = d.department_id
-          JOIN Results r ON s.student_id = r.student_id
-          JOIN AcademicYears ay ON r.academic_year_id = ay.academic_year_id
-          JOIN Sessions sess ON r.session_id = sess.session_id
-          JOIN Grades g ON r.grade_id = g.grade_id
-          WHERE 1=1";
+               d.department_name, ay.academic_year, sess.session_name,
+               sor.cumulative_gpa, sor.total_credits_earned, sor.overall_grade_letter, sor.final_remark
+        FROM Students s
+        JOIN Departments d ON s.department_id = d.department_id
+        LEFT JOIN StudentOverallResults sor ON s.student_id = sor.student_id
+        LEFT JOIN AcademicYears ay ON sor.academic_year_id = ay.academic_year_id
+        LEFT JOIN Sessions sess ON sor.session_id = sess.session_id
+        WHERE 1=1";
 
 $params = [];
 
@@ -46,12 +44,12 @@ if (!empty($filters['department_id'])) {
 }
 
 if (!empty($filters['academic_year_id'])) {
-    $query .= " AND r.academic_year_id = ?";
+    $query .= " AND sor.academic_year_id = ?";
     $params[] = $filters['academic_year_id'];
 }
 
 if (!empty($filters['session_id'])) {
-    $query .= " AND r.session_id = ?";
+    $query .= " AND sor.session_id = ?";
     $params[] = $filters['session_id'];
 }
 
@@ -63,7 +61,6 @@ if (!empty($filters['search'])) {
     $params[] = $searchTerm;
 }
 
-$query .= " GROUP BY s.student_id, ay.academic_year_id, sess.session_id";
 $query .= " ORDER BY s.last_name, s.first_name";
 $query .= " LIMIT ? OFFSET ?";
 
@@ -75,19 +72,19 @@ $results = fetchAll($query, $params);
 
 // Count total results for pagination
 $countQuery = "SELECT COUNT(DISTINCT s.student_id) as total FROM Students s
-               JOIN Results r ON s.student_id = r.student_id
-               WHERE 1=1";
+             LEFT JOIN StudentOverallResults sor ON s.student_id = sor.student_id
+             WHERE 1=1";
 
 if (!empty($filters['department_id'])) {
     $countQuery .= " AND s.department_id = ?";
 }
 
 if (!empty($filters['academic_year_id'])) {
-    $countQuery .= " AND r.academic_year_id = ?";
+    $countQuery .= " AND sor.academic_year_id = ?";
 }
 
 if (!empty($filters['session_id'])) {
-    $countQuery .= " AND r.session_id = ?";
+    $countQuery .= " AND sor.session_id = ?";
 }
 
 if (!empty($filters['search'])) {
@@ -187,8 +184,10 @@ $totalPages = ceil($totalResults / $limit);
                                         <th>Department</th>
                                         <th>Academic Year</th>
                                         <th>Session</th>
-                                        <th>Average Score</th>
+                                        <th>GPA</th>
+                                        <th>Credits Earned</th>
                                         <th>Grade</th>
+                                        <th>Final Remark</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -198,10 +197,12 @@ $totalPages = ceil($totalResults / $limit);
                                             <td><?php echo htmlspecialchars($result['last_name'] . ', ' . $result['first_name']); ?></td>
                                             <td><?php echo htmlspecialchars($result['matriculation_number']); ?></td>
                                             <td><?php echo htmlspecialchars($result['department_name']); ?></td>
-                                            <td><?php echo htmlspecialchars($result['academic_year']); ?></td>
-                                            <td><?php echo htmlspecialchars($result['session_name']); ?></td>
-                                            <td><?php echo number_format($result['average_score'], 2); ?></td>
-                                            <td><?php echo htmlspecialchars($result['grade']); ?></td>
+                                            <td><?php echo htmlspecialchars($result['academic_year'] ?? 'N/A'); ?></td>
+                                            <td><?php echo htmlspecialchars($result['session_name'] ?? 'N/A'); ?></td>
+                                            <td><?php echo $result['cumulative_gpa'] ? number_format($result['cumulative_gpa'], 2) : 'N/A'; ?></td>
+                                            <td><?php echo $result['total_credits_earned'] ?? 'N/A'; ?></td>
+                                            <td><?php echo htmlspecialchars($result['overall_grade_letter'] ?? 'N/A'); ?></td>
+                                            <td><?php echo htmlspecialchars($result['final_remark'] ?? 'N/A'); ?></td>
                                             <td class="action-buttons">
                                                 <button class="btn btn-sm btn-primary view-result" data-student-id="<?php echo $result['student_id']; ?>">View</button>
                                                 <button class="btn btn-sm btn-secondary edit-result" data-student-id="<?php echo $result['student_id']; ?>">Edit</button>
@@ -267,4 +268,3 @@ $totalPages = ceil($totalResults / $limit);
     <script src="../js/view-result.js"></script>
 </body>
 </html>
-
