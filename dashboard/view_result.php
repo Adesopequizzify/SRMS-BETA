@@ -268,3 +268,4 @@ $totalPages = ceil($totalResults / $limit);
     <script src="../js/view-result.js"></script>
 </body>
 </html>
+

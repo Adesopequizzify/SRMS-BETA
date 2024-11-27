@@ -28,7 +28,7 @@ if (isset($_SESSION['admin_id']) || isset($_SESSION['student_id'])) {
                             <i class="bi bi-person-circle user-icon"></i>
                         </div>
                         <h2 class="text-center mb-2">LUFEM School</h2>
-                        <h5 class="text-center mb-4">Student Resource Management System Project 2024</h5>
+                        <h5 class="text-center mb-4">Student Result Management System Project 2024</h5>
                         <ul class="nav nav-tabs mb-3" id="loginTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin-login" type="button" role="tab">Admin Login</button>

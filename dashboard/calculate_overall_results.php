@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once '../db.php';
+require_once __DIR__ . '/../db.php';  // Using __DIR__ to ensure correct path resolution
 
 // Function to calculate GPA
 function calculateGPA($totalPoints, $totalCourses) {
@@ -26,7 +26,7 @@ function getFinalRemark($gpa) {
 }
 
 // Main calculation function
-function calculateAndUpdateOverallResults() {
+function calculateAndUpdateOverallResults($student_id = null, $academic_year_id = null, $session_id = null) {
     global $conn;
     
     $conn->begin_transaction();
@@ -34,14 +34,39 @@ function calculateAndUpdateOverallResults() {
     try {
         // Get all distinct student, academic year, and session combinations
         $query = "SELECT DISTINCT student_id, academic_year_id, session_id FROM Results";
-        $result = $conn->query($query);
+        $params = [];
+        $types = "";
+
+        // Add conditions if specific parameters are provided
+        if ($student_id !== null) {
+            $query .= " WHERE student_id = ?";
+            $params[] = $student_id;
+            $types .= "i";
+        }
+        if ($academic_year_id !== null) {
+            $query .= ($student_id === null ? " WHERE" : " AND") . " academic_year_id = ?";
+            $params[] = $academic_year_id;
+            $types .= "i";
+        }
+        if ($session_id !== null) {
+            $query .= (($student_id === null && $academic_year_id === null) ? " WHERE" : " AND") . " session_id = ?";
+            $params[] = $session_id;
+            $types .= "i";
+        }
+
+        $stmt = $conn->prepare($query);
+        if (!empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
         
         $updatedCount = 0;
         
         while ($row = $result->fetch_assoc()) {
-            $student_id = $row['student_id'];
-            $academic_year_id = $row['academic_year_id'];
-            $session_id = $row['session_id'];
+            $current_student_id = $row['student_id'];
+            $current_academic_year_id = $row['academic_year_id'];
+            $current_session_id = $row['session_id'];
             
             // Calculate overall results for this student, year, and session
             $calcQuery = "SELECT 
@@ -58,12 +83,13 @@ function calculateAndUpdateOverallResults() {
                           WHERE r.student_id = ? AND r.academic_year_id = ? AND r.session_id = ?";
             
             $stmt = $conn->prepare($calcQuery);
-            $stmt->bind_param("iii", $student_id, $academic_year_id, $session_id);
+            $stmt->bind_param("iii", $current_student_id, $current_academic_year_id, $current_session_id);
             $stmt->execute();
             $calcResult = $stmt->get_result()->fetch_assoc();
             
             $totalCourses = $calcResult['total_courses'];
             $totalPoints = $calcResult['total_points'];
+            
             $gpa = calculateGPA($totalPoints, $totalCourses);
             $overallGradeLetter = getOverallGradeLetter($gpa);
             $finalRemark = getFinalRemark($gpa);
@@ -79,7 +105,7 @@ function calculateAndUpdateOverallResults() {
                             final_remark = VALUES(final_remark)";
             
             $stmt = $conn->prepare($updateQuery);
-            $stmt->bind_param("iiidiss", $student_id, $academic_year_id, $session_id, $gpa, $totalCourses, $overallGradeLetter, $finalRemark);
+            $stmt->bind_param("iiidiss", $current_student_id, $current_academic_year_id, $current_session_id, $gpa, $totalCourses, $overallGradeLetter, $finalRemark);
             $stmt->execute();
             
             $updatedCount++;
@@ -98,3 +124,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || php_sapi_name() === 'cli') {
     $result = calculateAndUpdateOverallResults();
     echo json_encode($result);
 }
+

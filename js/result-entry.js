@@ -97,9 +97,6 @@ $(document).ready(function() {
                                                 <span class="input-group-text grade-display"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-2">
-                                            <span class="badge bg-secondary remark-badge"></span>
-                                        </div>
                                     </div>
                                 </div>
                             `;
@@ -121,24 +118,20 @@ $(document).ready(function() {
     $(document).on('input', '.score-input', function() {
         let score = parseFloat($(this).val());
         let gradeDisplay = $(this).siblings('.grade-display');
-        let remarkBadge = $(this).closest('.course-result').find('.remark-badge');
         
         if (!isNaN(score)) {
             let grade = calculateGrade(score);
             gradeDisplay.html(`${grade}`);
             gradeDisplay.removeClass().addClass('input-group-text grade-display');
-            remarkBadge.removeClass().addClass('badge');
             
             if (grade === 'F') {
                 gradeDisplay.addClass('bg-danger text-white');
-                remarkBadge.addClass('bg-danger').text('Fail');
             } else {
                 gradeDisplay.addClass('bg-success text-white');
-                remarkBadge.addClass('bg-success').text('Pass');
             }
         } else {
             gradeDisplay.html('');
-            remarkBadge.removeClass().addClass('badge bg-secondary').text('');
+            gradeDisplay.removeClass().addClass('input-group-text grade-display');
         }
     });
 
