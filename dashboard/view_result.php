@@ -26,14 +26,13 @@ $limit = 10;
 $offset = ($page - 1) * $limit;
 
 // Build the query
-$query = "SELECT s.student_id, s.first_name, s.last_name, s.matriculation_number, 
-               d.department_name, ay.academic_year, sess.session_name,
-               sor.cumulative_gpa, sor.total_credits_earned, sor.overall_grade_letter, sor.final_remark
+$query = "SELECT DISTINCT s.student_id, s.first_name, s.last_name, s.matriculation_number, 
+               d.department_name, ay.academic_year, sess.session_name
         FROM Students s
         JOIN Departments d ON s.department_id = d.department_id
-        LEFT JOIN StudentOverallResults sor ON s.student_id = sor.student_id
-        LEFT JOIN AcademicYears ay ON sor.academic_year_id = ay.academic_year_id
-        LEFT JOIN Sessions sess ON sor.session_id = sess.session_id
+        JOIN Results r ON s.student_id = r.student_id
+        JOIN AcademicYears ay ON r.academic_year_id = ay.academic_year_id
+        JOIN Sessions sess ON r.session_id = sess.session_id
         WHERE 1=1";
 
 $params = [];
@@ -44,12 +43,12 @@ if (!empty($filters['department_id'])) {
 }
 
 if (!empty($filters['academic_year_id'])) {
-    $query .= " AND sor.academic_year_id = ?";
+    $query .= " AND r.academic_year_id = ?";
     $params[] = $filters['academic_year_id'];
 }
 
 if (!empty($filters['session_id'])) {
-    $query .= " AND sor.session_id = ?";
+    $query .= " AND r.session_id = ?";
     $params[] = $filters['session_id'];
 }
 
@@ -72,7 +71,7 @@ $results = fetchAll($query, $params);
 
 // Count total results for pagination
 $countQuery = "SELECT COUNT(DISTINCT s.student_id) as total FROM Students s
-             LEFT JOIN StudentOverallResults sor ON s.student_id = sor.student_id
+             JOIN Results r ON s.student_id = r.student_id
              WHERE 1=1";
 
 if (!empty($filters['department_id'])) {
@@ -80,11 +79,11 @@ if (!empty($filters['department_id'])) {
 }
 
 if (!empty($filters['academic_year_id'])) {
-    $countQuery .= " AND sor.academic_year_id = ?";
+    $countQuery .= " AND r.academic_year_id = ?";
 }
 
 if (!empty($filters['session_id'])) {
-    $countQuery .= " AND sor.session_id = ?";
+    $countQuery .= " AND r.session_id = ?";
 }
 
 if (!empty($filters['search'])) {
@@ -93,6 +92,246 @@ if (!empty($filters['search'])) {
 
 $totalResults = fetchOne($countQuery, array_slice($params, 0, -2))['total'];
 $totalPages = ceil($totalResults / $limit);
+
+// Function to get student result details
+function getStudentResultDetails($student_id, $academic_year, $session) {
+    global $conn;
+    
+    // Fetch student details
+    $studentQuery = "SELECT s.*, d.department_name 
+                     FROM Students s
+                     JOIN Departments d ON s.department_id = d.department_id
+                     WHERE s.student_id = ?";
+    $student = fetchOne($studentQuery, [$student_id]);
+
+    if (!$student) {
+        return "Student not found.";
+    }
+
+    // Fetch individual course results
+    $resultsQuery = "SELECT r.*, c.course_code, c.course_name, g.grade_letter
+                     FROM Results r
+                     JOIN Courses c ON r.course_id = c.course_id
+                     JOIN Grades g ON r.grade_id = g.grade_id
+                     JOIN AcademicYears ay ON r.academic_year_id = ay.academic_year_id
+                     JOIN Sessions s ON r.session_id = s.session_id
+                     WHERE r.student_id = ? AND ay.academic_year = ? AND s.session_name = ?
+                     ORDER BY c.course_code";
+    $results = fetchAll($resultsQuery, [$student_id, $academic_year, $session]);
+
+    // Calculate GPA
+    $totalPoints = 0;
+    $totalCourses = count($results);
+    foreach ($results as $result) {
+        $totalPoints += getGradePoint($result['grade_letter']);
+    }
+    $gpa = $totalCourses > 0 ? $totalPoints / $totalCourses : 0;
+
+    // Build HTML response
+    $html = "<h3>{$student['first_name']} {$student['last_name']} ({$student['matriculation_number']})</h3>";
+    $html .= "<p><strong>Department:</strong> {$student['department_name']}</p>";
+    $html .= "<p><strong>Academic Year:</strong> {$academic_year}</p>";
+    $html .= "<p><strong>Session:</strong> {$session}</p>";
+    $html .= "<p><strong>GPA:</strong> " . number_format($gpa, 2) . "</p>";
+
+    $html .= "<table class='table table-striped'>";
+    $html .= "<thead><tr><th>Course Code</th><th>Course Name</th><th>Score</th><th>Grade</th></tr></thead>";
+    $html .= "<tbody>";
+
+    foreach ($results as $result) {
+        $html .= "<tr>";
+        $html .= "<td>{$result['course_code']}</td>";
+        $html .= "<td>{$result['course_name']}</td>";
+        $html .= "<td>{$result['score']}</td>";
+        $html .= "<td>{$result['grade_letter']}</td>";
+        $html .= "</tr>";
+    }
+
+    $html .= "</tbody></table>";
+
+    return $html;
+}
+
+// Function to get edit result form
+function getEditResultForm($student_id, $academic_year, $session) {
+    global $conn;
+    
+    // Fetch student details
+    $studentQuery = "SELECT s.*, d.department_name 
+                     FROM Students s
+                     JOIN Departments d ON s.department_id = d.department_id
+                     WHERE s.student_id = ?";
+    $student = fetchOne($studentQuery, [$student_id]);
+
+    if (!$student) {
+        return "Student not found.";
+    }
+
+    // Fetch individual course results
+    $resultsQuery = "SELECT r.*, c.course_code, c.course_name, g.grade_letter
+                     FROM Results r
+                     JOIN Courses c ON r.course_id = c.course_id
+                     JOIN Grades g ON r.grade_id = g.grade_id
+                     JOIN AcademicYears ay ON r.academic_year_id = ay.academic_year_id
+                     JOIN Sessions s ON r.session_id = s.session_id
+                     WHERE r.student_id = ? AND ay.academic_year = ? AND s.session_name = ?
+                     ORDER BY c.course_code";
+    $results = fetchAll($resultsQuery, [$student_id, $academic_year, $session]);
+
+    // Fetch all possible grades
+    $gradesQuery = "SELECT * FROM Grades ORDER BY grade_letter";
+    $grades = fetchAll($gradesQuery);
+
+    // Build HTML form
+    $html = "<form id='editResultForm'>";
+    $html .= "<input type='hidden' name='student_id' value='{$student_id}'>";
+    $html .= "<input type='hidden' name='academic_year' value='{$academic_year}'>";
+    $html .= "<input type='hidden' name='session' value='{$session}'>";
+    $html .= "<h3>{$student['first_name']} {$student['last_name']} ({$student['matriculation_number']})</h3>";
+    $html .= "<p><strong>Department:</strong> {$student['department_name']}</p>";
+    $html .= "<p><strong>Academic Year:</strong> {$academic_year}</p>";
+    $html .= "<p><strong>Session:</strong> {$session}</p>";
+
+    $html .= "<table class='table table-striped'>";
+    $html .= "<thead><tr><th>Course Code</th><th>Course Name</th><th>Score</th><th>Grade</th></tr></thead>";
+    $html .= "<tbody>";
+
+    foreach ($results as $result) {
+        $html .= "<tr>";
+        $html .= "<td>{$result['course_code']}</td>";
+        $html .= "<td>{$result['course_name']}</td>";
+        $html .= "<td><input type='number' name='scores[{$result['result_id']}]' value='{$result['score']}' min='0' max='100' step='0.01' required class='form-control score-input'></td>";
+        $html .= "<td><select name='grades[{$result['result_id']}]' required class='form-select grade-select'>";
+        foreach ($grades as $grade) {
+            $selected = ($grade['grade_letter'] == $result['grade_letter']) ? 'selected' : '';
+            $html .= "<option value='{$grade['grade_id']}' {$selected}>{$grade['grade_letter']}</option>";
+        }
+        $html .= "</select></td>";
+        $html .= "</tr>";
+    }
+
+    $html .= "</tbody></table>";
+    $html .= "<button type='submit' class='btn btn-primary'>Update Results</button>";
+    $html .= "</form>";
+
+    return $html;
+}
+
+// Function to update student result
+function updateStudentResult($data) {
+    global $conn;
+
+    error_log("Starting updateStudentResult with data: " . json_encode($data));
+
+    try {
+        $conn->begin_transaction();
+
+        if (!isset($data['scores']) || !isset($data['grades']) || !isset($data['student_id'])) {
+            throw new Exception("Missing required data for update");
+        }
+
+        $academic_year_id = null;
+        $session_id = null;
+
+        foreach ($data['scores'] as $result_id => $score) {
+            if (!isset($data['grades'][$result_id])) {
+                throw new Exception("Missing grade for result ID: $result_id");
+            }
+
+            $grade_id = $data['grades'][$result_id];
+            $updateQuery = "UPDATE Results SET score = ?, grade_id = ? WHERE result_id = ?";
+            $stmt = $conn->prepare($updateQuery);
+            if (!$stmt) {
+                throw new Exception("Error preparing statement: " . $conn->error);
+            }
+            $stmt->bind_param("dii", $score, $grade_id, $result_id);
+            if (!$stmt->execute()) {
+                throw new Exception("Error executing statement: " . $stmt->error);
+            }
+
+            // Get academic_year_id and session_id from the first result
+            if ($academic_year_id === null || $session_id === null) {
+                $infoQuery = "SELECT academic_year_id, session_id FROM Results WHERE result_id = ?";
+                $infoStmt = $conn->prepare($infoQuery);
+                $infoStmt->bind_param("i", $result_id);
+                $infoStmt->execute();
+                $infoResult = $infoStmt->get_result();
+                $infoRow = $infoResult->fetch_assoc();
+                $academic_year_id = $infoRow['academic_year_id'];
+                $session_id = $infoRow['session_id'];
+                $infoStmt->close();
+            }
+
+            $stmt->close();
+        }
+
+        error_log("All results updated successfully. Proceeding to recalculation.");
+
+        // Trigger recalculation of overall results
+        require_once 'calculate_overall_results.php';
+        $recalculationResult = calculateAndUpdateOverallResults($data['student_id'], $academic_year_id, $session_id);
+
+        if ($recalculationResult['success']) {
+            $conn->commit();
+            error_log("Transaction committed successfully.");
+            return ['success' => true, 'message' => 'Results updated successfully.'];
+        } else {
+            throw new Exception($recalculationResult['message']);
+        }
+    } catch (Exception $e) {
+        $conn->rollback();
+        error_log("Error in updateStudentResult: " . $e->getMessage());
+        return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
+    }
+}
+// Handle AJAX requests
+if (isset($_GET['action'])) {
+    header('Content-Type: application/json');
+    
+    switch ($_GET['action']) {
+        case 'view_result':
+            if (isset($_GET['student_id']) && isset($_GET['academic_year']) && isset($_GET['session'])) {
+                echo json_encode([
+                    'success' => true,
+                    'html' => getStudentResultDetails($_GET['student_id'], $_GET['academic_year'], $_GET['session'])
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+            }
+            exit;
+        
+        case 'get_edit_form':
+            if (isset($_GET['student_id']) && isset($_GET['academic_year']) && isset($_GET['session'])) {
+                echo json_encode([
+                    'success' => true,
+                    'html' => getEditResultForm($_GET['student_id'], $_GET['academic_year'], $_GET['session'])
+                ]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Missing parameters']);
+            }
+            exit;
+        
+        case 'update_result':
+            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+                error_log("Received update_result request: " . json_encode($_POST));
+                $result = updateStudentResult($_POST);
+                echo json_encode($result);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Invalid request method']);
+            }
+            exit;
+    }
+}
+
+function getGradePoint($gradeLetter) {
+    switch ($gradeLetter) {
+        case 'A': return 4.0;
+        case 'B': return 3.0;
+        case 'C': return 2.0;
+        case 'D': return 1.0;
+        default: return 0.0;
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -184,10 +423,6 @@ $totalPages = ceil($totalResults / $limit);
                                         <th>Department</th>
                                         <th>Academic Year</th>
                                         <th>Session</th>
-                                        <th>GPA</th>
-                                        <th>Credits Earned</th>
-                                        <th>Grade</th>
-                                        <th>Final Remark</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -197,15 +432,11 @@ $totalPages = ceil($totalResults / $limit);
                                             <td><?php echo htmlspecialchars($result['last_name'] . ', ' . $result['first_name']); ?></td>
                                             <td><?php echo htmlspecialchars($result['matriculation_number']); ?></td>
                                             <td><?php echo htmlspecialchars($result['department_name']); ?></td>
-                                            <td><?php echo htmlspecialchars($result['academic_year'] ?? 'N/A'); ?></td>
-                                            <td><?php echo htmlspecialchars($result['session_name'] ?? 'N/A'); ?></td>
-                                            <td><?php echo $result['cumulative_gpa'] ? number_format($result['cumulative_gpa'], 2) : 'N/A'; ?></td>
-                                            <td><?php echo $result['total_credits_earned'] ?? 'N/A'; ?></td>
-                                            <td><?php echo htmlspecialchars($result['overall_grade_letter'] ?? 'N/A'); ?></td>
-                                            <td><?php echo htmlspecialchars($result['final_remark'] ?? 'N/A'); ?></td>
+                                            <td><?php echo htmlspecialchars($result['academic_year']); ?></td>
+                                            <td><?php echo htmlspecialchars($result['session_name']); ?></td>
                                             <td class="action-buttons">
-                                                <button class="btn btn-sm btn-primary view-result" data-student-id="<?php echo $result['student_id']; ?>">View</button>
-                                                <button class="btn btn-sm btn-secondary edit-result" data-student-id="<?php echo $result['student_id']; ?>">Edit</button>
+                                                <button class="btn btn-sm btn-primary view-result" data-student-id="<?php echo $result['student_id']; ?>" data-academic-year="<?php echo $result['academic_year']; ?>" data-session="<?php echo $result['session_name']; ?>">View</button>
+                                                <button class="btn btn-sm btn-secondary edit-result" data-student-id="<?php echo $result['student_id']; ?>" data-academic-year="<?php echo $result['academic_year']; ?>" data-session="<?php echo $result['session_name']; ?>">Edit</button>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -265,7 +496,151 @@ $totalPages = ceil($totalResults / $limit);
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="../js/dashboard.js"></script>
-    <script src="../js/view-result.js"></script>
+    <script>
+        $(document).ready(function() {
+            // View Result
+            $('.view-result').on('click', function() {
+                var studentId = $(this).data('student-id');
+                var academicYear = $(this).data('academic-year');
+                var session = $(this).data('session');
+                $.ajax({
+                    url: 'view_result.php',
+                    type: 'GET',
+                    data: { 
+                        action: 'view_result',
+                        student_id: studentId,
+                        academic_year: academicYear,
+                        session: session
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#viewResultContent').html(response.html);
+                            $('#viewResultModal').modal('show');
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    },
+                    error: function() {
+                        alert('Error fetching result details.');
+                    }
+                });
+            });
+
+            // Edit Result
+            $('.edit-result').on('click', function() {
+                var studentId = $(this).data('student-id');
+                var academicYear = $(this).data('academic-year');
+                var session = $(this).data('session');
+                $.ajax({
+                    url: 'view_result.php',
+                    type: 'GET',
+                    data: { 
+                        action: 'get_edit_form',
+                        student_id: studentId,
+                        academic_year: academicYear,
+                        session: session
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#editResultContent').html(response.html);
+                            $('#editResultModal').modal('show');
+                        } else {
+                            alert('Error: ' + response.message);
+                        }
+                    },
+                    error: function() {
+                        alert('Error fetching edit form.');
+                    }
+                });
+            });
+
+            // Handle edit result form submission
+  // Handle edit result form submission
+$(document).ready(function() {
+  $(document).on('submit', '#editResultForm', function(e) {
+    e.preventDefault();
+    var formData = $(this).serialize();
+    var submitButton = $(this).find('button[type="submit"]');
+
+    // Disable submit button and show loading state
+    submitButton.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+
+    $.ajax({
+      url: 'view_result.php?action=update_result',
+      type: 'POST',
+      data: formData,
+      dataType: 'json',
+      success: function(response) {
+        console.log('Server response:', response);
+        if (response && response.success) {
+          console.log('Update successful');
+          showAlert('success', 'Result updated successfully');
+          $('#editResultModal').modal('hide');
+          // Refresh the page to show updated results
+          setTimeout(function() {
+            location.reload();
+          }, 1500);
+        } else {
+          console.error('Update failed:', response);
+          showAlert('danger', 'Error: ' + (response.message || 'Unknown error occurred'));
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error('AJAX Error:', status, error);
+        console.error('Response:', xhr.responseText);
+        try {
+          var errorResponse = JSON.parse(xhr.responseText);
+          console.error('Parsed error response:', errorResponse);
+          showAlert('danger', 'Error: ' + (errorResponse.message || 'Unknown error occurred'));
+        } catch (e) {
+          console.error('Could not parse error response');
+          showAlert('danger', 'An error occurred while updating the result.');
+        }
+      },
+      complete: function() {
+        // Re-enable submit button and restore original text
+        submitButton.prop('disabled', false).text('Update Results');
+      }
+    });
+  });
+
+  function showAlert(type, message) {
+    var alertHtml = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
+      message +
+      '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+      '</div>';
+
+    // Remove any existing alerts
+    $('.alert').remove();
+
+    // Add the new alert before the form
+    $('#editResultForm').before(alertHtml);
+
+    // Automatically dismiss the alert after 5 seconds
+    setTimeout(function() {
+      $('.alert').alert('close');
+    }, 5000);
+  }
+});  // Update grade when score changes
+            $(document).on('input', '.score-input', function() {
+                var score = parseFloat($(this).val());
+                var gradeSelect = $(this).closest('tr').find('.grade-select');
+                
+                if (!isNaN(score)) {
+                    var grade = calculateGrade(score);
+                    gradeSelect.val(grade);
+                }
+            });
+
+            function calculateGrade(score) {
+  if (score >= 70) return 'A';
+  if (score >= 60) return 'B';
+  if (score >= 50) return 'C';
+  if (score >= 45) return 'D';
+  if (score >= 40) return 'E';
+  return 'F';
+}
+});
+    </script>
 </body>
 </html>
-

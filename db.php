@@ -1,6 +1,6 @@
 <?php
 $host = 'localhost';
-$dbname = 'lmf';
+$dbname = 'lf';
 $username = 'root';
 $password = '';
 

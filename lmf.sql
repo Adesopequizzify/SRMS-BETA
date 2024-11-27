@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Nov 27, 2024 at 01:53 PM
+-- Generation Time: Nov 27, 2024 at 05:01 PM
 -- Server version: 5.7.34
 -- PHP Version: 8.2.6
 
@@ -82,7 +82,8 @@ CREATE TABLE `Courses` (
 
 INSERT INTO `Courses` (`course_id`, `course_code`, `course_name`, `department_id`) VALUES
 (1, 'Hey', 'Mech -122', 1),
-(2, 'Hey-yo', 'Mech -125', 2);
+(2, 'Hey-yo', 'Mech -125', 2),
+(3, 'Mecha-112', 'Mechatronics ', 3);
 
 -- --------------------------------------------------------
 
@@ -151,7 +152,13 @@ INSERT INTO `Grades` (`grade_id`, `grade_letter`, `min_percentage`, `max_percent
 (3, 'C', 50.00, 59.00),
 (4, 'D', 45.00, 49.00),
 (5, 'E', 40.00, 44.00),
-(6, 'F', 0.00, 39.00);
+(6, 'F', 0.00, 39.00),
+(7, 'A', 70.00, 100.00),
+(8, 'B', 60.00, 70.00),
+(9, 'C', 50.00, 60.00),
+(10, 'D', 40.00, 50.00),
+(11, 'E', 50.00, 40.00),
+(12, 'F', 0.00, 39.00);
 
 -- --------------------------------------------------------
 
@@ -176,7 +183,8 @@ CREATE TABLE `Results` (
 
 INSERT INTO `Results` (`result_id`, `student_id`, `course_id`, `academic_year_id`, `session_id`, `score`, `grade_id`, `final_remark`) VALUES
 (1, 1, 1, 1, 1, 80.00, 1, NULL),
-(2, 2, 2, 1, 1, 90.00, 1, NULL);
+(2, 2, 2, 1, 1, 90.00, 1, NULL),
+(3, 3, 3, 1, 1, 90.00, 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -216,7 +224,8 @@ CREATE TABLE `StudentCourses` (
 
 INSERT INTO `StudentCourses` (`student_id`, `course_id`, `academic_year_id`, `session_id`) VALUES
 (1, 1, 1, 1),
-(2, 2, 1, 1);
+(2, 2, 1, 1),
+(3, 3, 1, 1);
 
 -- --------------------------------------------------------
 
@@ -241,7 +250,8 @@ CREATE TABLE `StudentOverallResults` (
 
 INSERT INTO `StudentOverallResults` (`overall_result_id`, `student_id`, `academic_year_id`, `session_id`, `cumulative_gpa`, `total_credits_earned`, `overall_grade_letter`, `final_remark`) VALUES
 (1, 1, 1, 1, 4.00, 1, 'A', 'Distinction'),
-(2, 2, 1, 1, 4.00, 1, 'A', 'Distinction');
+(2, 2, 1, 1, 4.00, 1, 'A', 'Distinction'),
+(3, 3, 1, 1, 4.00, 1, 'A', 'Distinction');
 
 -- --------------------------------------------------------
 
@@ -268,7 +278,8 @@ CREATE TABLE `Students` (
 
 INSERT INTO `Students` (`student_id`, `matriculation_number`, `first_name`, `last_name`, `department_id`, `gender`, `class`, `academic_year_id`, `session_id`, `password`) VALUES
 (1, '2947484947473', 'Muiz', 'Hey', 1, 'Male', 'ND1', 1, 1, '$2y$10$LBmbdswDY2vGxUzTl2K4eO2U4WKl46qxf1V/0/a80O6e4M1pEBGi.'),
-(2, '29474564947473', 'Jay', 'Hhdjd', 2, 'Female', 'ND1', 1, 1, '$2y$10$A1T629sQYO.WNZR2NboE9eZre.SYxWzRNDi0W0g8gOlK7Ogr1uW4.');
+(2, '29474564947473', 'Jay', 'Hhdjd', 2, 'Female', 'ND1', 1, 1, '$2y$10$A1T629sQYO.WNZR2NboE9eZre.SYxWzRNDi0W0g8gOlK7Ogr1uW4.'),
+(3, '2330303034', 'music', 'guy', 3, 'Male', 'ND1', 1, 1, '$2y$10$qLIJJwzveSNOMQSzRYcVlefesAEGauuBAfJ05Vgo1y6ty78rfzbOK');
 
 --
 -- Indexes for dumped tables
@@ -382,7 +393,7 @@ ALTER TABLE `Admins`
 -- AUTO_INCREMENT for table `Courses`
 --
 ALTER TABLE `Courses`
-  MODIFY `course_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `course_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `Departments`
@@ -400,13 +411,13 @@ ALTER TABLE `FinalRemarks`
 -- AUTO_INCREMENT for table `Grades`
 --
 ALTER TABLE `Grades`
-  MODIFY `grade_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `grade_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
 
 --
 -- AUTO_INCREMENT for table `Results`
 --
 ALTER TABLE `Results`
-  MODIFY `result_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `result_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `Sessions`
@@ -418,13 +429,13 @@ ALTER TABLE `Sessions`
 -- AUTO_INCREMENT for table `StudentOverallResults`
 --
 ALTER TABLE `StudentOverallResults`
-  MODIFY `overall_result_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `overall_result_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `Students`
 --
 ALTER TABLE `Students`
-  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `student_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -29,6 +29,10 @@ function getFinalRemark($gpa) {
 function calculateAndUpdateOverallResults($student_id = null, $academic_year_id = null, $session_id = null) {
     global $conn;
     
+    error_log("Starting calculateAndUpdateOverallResults - Student ID: " . ($student_id ?? 'All') . 
+              ", Academic Year ID: " . ($academic_year_id ?? 'All') . 
+              ", Session ID: " . ($session_id ?? 'All'));
+    
     $conn->begin_transaction();
     
     try {
@@ -54,11 +58,22 @@ function calculateAndUpdateOverallResults($student_id = null, $academic_year_id 
             $types .= "i";
         }
 
+        error_log("Executing query: " . $query);
+        error_log("Query parameters: " . json_encode($params));
+
         $stmt = $conn->prepare($query);
+        if (!$stmt) {
+            throw new Exception("Error preparing statement: " . $conn->error);
+        }
+        
         if (!empty($params)) {
             $stmt->bind_param($types, ...$params);
         }
-        $stmt->execute();
+        
+        if (!$stmt->execute()) {
+            throw new Exception("Error executing statement: " . $stmt->error);
+        }
+        
         $result = $stmt->get_result();
         
         $updatedCount = 0;
@@ -67,6 +82,8 @@ function calculateAndUpdateOverallResults($student_id = null, $academic_year_id 
             $current_student_id = $row['student_id'];
             $current_academic_year_id = $row['academic_year_id'];
             $current_session_id = $row['session_id'];
+            
+            error_log("Processing - Student ID: $current_student_id, Academic Year ID: $current_academic_year_id, Session ID: $current_session_id");
             
             // Calculate overall results for this student, year, and session
             $calcQuery = "SELECT 
@@ -83,8 +100,16 @@ function calculateAndUpdateOverallResults($student_id = null, $academic_year_id 
                           WHERE r.student_id = ? AND r.academic_year_id = ? AND r.session_id = ?";
             
             $stmt = $conn->prepare($calcQuery);
+            if (!$stmt) {
+                throw new Exception("Error preparing calculation statement: " . $conn->error);
+            }
+            
             $stmt->bind_param("iii", $current_student_id, $current_academic_year_id, $current_session_id);
-            $stmt->execute();
+            
+            if (!$stmt->execute()) {
+                throw new Exception("Error executing calculation statement: " . $stmt->error);
+            }
+            
             $calcResult = $stmt->get_result()->fetch_assoc();
             
             $totalCourses = $calcResult['total_courses'];
@@ -93,6 +118,8 @@ function calculateAndUpdateOverallResults($student_id = null, $academic_year_id 
             $gpa = calculateGPA($totalPoints, $totalCourses);
             $overallGradeLetter = getOverallGradeLetter($gpa);
             $finalRemark = getFinalRemark($gpa);
+            
+            error_log("Calculated - Total Courses: $totalCourses, Total Points: $totalPoints, GPA: $gpa, Grade: $overallGradeLetter, Remark: $finalRemark");
             
             // Insert or update the StudentOverallResults table
             $updateQuery = "INSERT INTO StudentOverallResults 
@@ -105,16 +132,26 @@ function calculateAndUpdateOverallResults($student_id = null, $academic_year_id 
                             final_remark = VALUES(final_remark)";
             
             $stmt = $conn->prepare($updateQuery);
+            if (!$stmt) {
+                throw new Exception("Error preparing update statement: " . $conn->error);
+            }
+            
             $stmt->bind_param("iiidiss", $current_student_id, $current_academic_year_id, $current_session_id, $gpa, $totalCourses, $overallGradeLetter, $finalRemark);
-            $stmt->execute();
+            
+            if (!$stmt->execute()) {
+                throw new Exception("Error executing update statement: " . $stmt->error);
+            }
             
             $updatedCount++;
+            error_log("Updated overall results for Student ID: $current_student_id");
         }
         
         $conn->commit();
+        error_log("Transaction committed successfully. Updated $updatedCount student(s).");
         return ["success" => true, "message" => "Updated overall results for $updatedCount student(s)."];
     } catch (Exception $e) {
         $conn->rollback();
+        error_log("Error in calculateAndUpdateOverallResults: " . $e->getMessage());
         return ["success" => false, "message" => "Error: " . $e->getMessage()];
     }
 }
@@ -124,4 +161,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' || php_sapi_name() === 'cli') {
     $result = calculateAndUpdateOverallResults();
     echo json_encode($result);
 }
-
