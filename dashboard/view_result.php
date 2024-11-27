@@ -284,6 +284,7 @@ function updateStudentResult($data) {
         return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
     }
 }
+
 // Handle AJAX requests
 if (isset($_GET['action'])) {
     header('Content-Type: application/json');
@@ -291,9 +292,10 @@ if (isset($_GET['action'])) {
     switch ($_GET['action']) {
         case 'view_result':
             if (isset($_GET['student_id']) && isset($_GET['academic_year']) && isset($_GET['session'])) {
+                $result = getStudentResultDetails($_GET['student_id'], $_GET['academic_year'], $_GET['session']);
                 echo json_encode([
                     'success' => true,
-                    'html' => getStudentResultDetails($_GET['student_id'], $_GET['academic_year'], $_GET['session'])
+                    'html' => $result
                 ]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Missing parameters']);
@@ -302,9 +304,10 @@ if (isset($_GET['action'])) {
         
         case 'get_edit_form':
             if (isset($_GET['student_id']) && isset($_GET['academic_year']) && isset($_GET['session'])) {
+                $form = getEditResultForm($_GET['student_id'], $_GET['academic_year'], $_GET['session']);
                 echo json_encode([
                     'success' => true,
-                    'html' => getEditResultForm($_GET['student_id'], $_GET['academic_year'], $_GET['session'])
+                    'html' => $form
                 ]);
             } else {
                 echo json_encode(['success' => false, 'message' => 'Missing parameters']);
@@ -497,149 +500,108 @@ function getGradePoint($gradeLetter) {
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="../js/dashboard.js"></script>
     <script>
-        $(document).ready(function() {
-            // View Result
-            $('.view-result').on('click', function() {
-                var studentId = $(this).data('student-id');
-                var academicYear = $(this).data('academic-year');
-                var session = $(this).data('session');
-                $.ajax({
-                    url: 'view_result.php',
-                    type: 'GET',
-                    data: { 
-                        action: 'view_result',
-                        student_id: studentId,
-                        academic_year: academicYear,
-                        session: session
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            $('#viewResultContent').html(response.html);
-                            $('#viewResultModal').modal('show');
-                        } else {
-                            alert('Error: ' + response.message);
-                        }
-                    },
-                    error: function() {
-                        alert('Error fetching result details.');
-                    }
-                });
-            });
-
-            // Edit Result
-            $('.edit-result').on('click', function() {
-                var studentId = $(this).data('student-id');
-                var academicYear = $(this).data('academic-year');
-                var session = $(this).data('session');
-                $.ajax({
-                    url: 'view_result.php',
-                    type: 'GET',
-                    data: { 
-                        action: 'get_edit_form',
-                        student_id: studentId,
-                        academic_year: academicYear,
-                        session: session
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            $('#editResultContent').html(response.html);
-                            $('#editResultModal').modal('show');
-                        } else {
-                            alert('Error: ' + response.message);
-                        }
-                    },
-                    error: function() {
-                        alert('Error fetching edit form.');
-                    }
-                });
-            });
-
-            // Handle edit result form submission
-  // Handle edit result form submission
-$(document).ready(function() {
-  $(document).on('submit', '#editResultForm', function(e) {
-    e.preventDefault();
-    var formData = $(this).serialize();
-    var submitButton = $(this).find('button[type="submit"]');
-
-    // Disable submit button and show loading state
-    submitButton.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
-
-    $.ajax({
-      url: 'view_result.php?action=update_result',
-      type: 'POST',
-      data: formData,
-      dataType: 'json',
-      success: function(response) {
-        console.log('Server response:', response);
-        if (response && response.success) {
-          console.log('Update successful');
-          showAlert('success', 'Result updated successfully');
-          $('#editResultModal').modal('hide');
-          // Refresh the page to show updated results
-          setTimeout(function() {
-            location.reload();
-          }, 1500);
-        } else {
-          console.error('Update failed:', response);
-          showAlert('danger', 'Error: ' + (response.message || 'Unknown error occurred'));
-        }
-      },
-      error: function(xhr, status, error) {
-        console.error('AJAX Error:', status, error);
-        console.error('Response:', xhr.responseText);
-        try {
-          var errorResponse = JSON.parse(xhr.responseText);
-          console.error('Parsed error response:', errorResponse);
-          showAlert('danger', 'Error: ' + (errorResponse.message || 'Unknown error occurred'));
-        } catch (e) {
-          console.error('Could not parse error response');
-          showAlert('danger', 'An error occurred while updating the result.');
-        }
-      },
-      complete: function() {
-        // Re-enable submit button and restore original text
-        submitButton.prop('disabled', false).text('Update Results');
-      }
-    });
-  });
-
-  function showAlert(type, message) {
-    var alertHtml = '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
-      message +
-      '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
-      '</div>';
-
-    // Remove any existing alerts
-    $('.alert').remove();
-
-    // Add the new alert before the form
-    $('#editResultForm').before(alertHtml);
-
-    // Automatically dismiss the alert after 5 seconds
-    setTimeout(function() {
-      $('.alert').alert('close');
-    }, 5000);
-  }
-});  // Update grade when score changes
-            $(document).on('input', '.score-input', function() {
-                var score = parseFloat($(this).val());
-                var gradeSelect = $(this).closest('tr').find('.grade-select');
-                
-                if (!isNaN(score)) {
-                    var grade = calculateGrade(score);
-                    gradeSelect.val(grade);
+     $(document).ready(function() {
+    // View Result
+    $('.view-result').on('click', function() {
+        var studentId = $(this).data('student-id');
+        var academicYear = $(this).data('academic-year');
+        var session = $(this).data('session');
+        $.ajax({
+            url: 'view_result.php',
+            type: 'GET',
+            data: { 
+                action: 'view_result',
+                student_id: studentId,
+                academic_year: academicYear,
+                session: session
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#viewResultContent').html(response.html);
+                    $('#viewResultModal').modal('show');
+                } else {
+                    showAlert('danger', 'Error: ' + response.message);
                 }
-            });
+            },
+            error: function(xhr, status, error) {
+                showAlert('danger', 'Error fetching result details: ' + error);
+            }
+        });
+    });
 
-            function calculateGrade(score) {
-  if (score >= 70) return 'A';
-  if (score >= 60) return 'B';
-  if (score >= 50) return 'C';
-  if (score >= 45) return 'D';
-  if (score >= 40) return 'E';
-  return 'F';
-}
+    // Edit Result
+    $('.edit-result').on('click', function() {
+        var studentId = $(this).data('student-id');
+        var academicYear = $(this).data('academic-year');
+        var session = $(this).data('session');
+        $.ajax({
+            url: 'view_result.php',
+            type: 'GET',
+            data: { 
+                action: 'get_edit_form',
+                student_id: studentId,
+                academic_year: academicYear,
+                session: session
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#editResultContent').html(response.html);
+                    $('#editResultModal').modal('show');
+                } else {
+                    showAlert('danger', 'Error: ' + response.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                showAlert('danger', 'Error fetching edit form: ' + error);
+            }
+        });
+    });
+
+    // Handle edit result form submission
+    $(document).on('submit', '#editResultForm', function(e) {
+  e.preventDefault();
+  var formData = $(this).serialize();
+  var submitButton = $(this).find('button[type="submit"]');
+
+  // Disable submit button and show loading state
+  submitButton.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...');
+
+  $.ajax({
+    url: 'view_result.php?action=update_result',
+    type: 'POST',
+    data: formData,
+    dataType: 'json',
+    complete: function() {
+      // Close the modal
+      $('#editResultModal').modal('hide');
+
+      // Refresh the page
+      location.reload();
+    }
+  });
+});
+
+// Remove the showAlert function as it's no longer needed
+
+    // Update grade when score changes
+    $(document).on('input', '.score-input', function() {
+        var score = parseFloat($(this).val());
+        var gradeSelect = $(this).closest('tr').find('.grade-select');
+        
+        if (!isNaN(score)) {
+            var grade = calculateGrade(score);
+            gradeSelect.val(grade);
+        }
+    });
+
+    function calculateGrade(score) {
+        if (score >= 70) return 'A';
+        if (score >= 60) return 'B';
+        if (score >= 50) return 'C';
+        if (score >= 45) return 'D';
+        if (score >= 40) return 'E';
+        return 'F';
+    }
 });
     </script>
 </body>
