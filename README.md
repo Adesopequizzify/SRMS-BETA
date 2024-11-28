@@ -3,7 +3,7 @@
 
 ## Project Overview
 
-The **Student Result Management System (SRMS)** is a dynamic and efficient web-based platform tailored to streamline the academic record management processes for educational institutions. By automating key workflows such as student registration, course management, and result processing, the SRMS ensures accuracy, reliability, and ease of use.
+The **Student Result Management System (SRMS)** is a dynamic and efficient Desktop/web-based platform tailored to streamline the academic record management processes for educational institutions. By automating key workflows such as student registration, course management, and result processing, the SRMS ensures accuracy, reliability, and ease of use.
 
 ### Key Objectives:
 
