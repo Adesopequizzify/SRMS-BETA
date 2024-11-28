@@ -37,7 +37,6 @@ The **Student Result Management System (SRMS)** is a dynamic and efficient Deskt
 
 ### 2. Student Management
 - Add, update, or delete student profiles.
-- Import student data in bulk via CSV files.
 - Advanced search and filtering options for quick access to records.
 - Student profile management with support for academic tracking.
 
